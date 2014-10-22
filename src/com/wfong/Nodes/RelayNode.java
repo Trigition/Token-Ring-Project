@@ -1,13 +1,14 @@
-package com.wfong.project1;
+package com.wfong.Nodes;
 
 import java.io.BufferedReader;
 import java.io.FileReader;
 import java.io.IOException;
 import java.net.InetAddress;
-import java.net.UnknownHostException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Scanner;
+
+import com.wfong.project1.Node;
 
 /**
  * This class relays data between client and server nodes (Acting as both)
@@ -58,20 +59,6 @@ public class RelayNode extends Node implements Runnable {
 		this.addServerSocket(myPort, myAddress);
 		configSettings.close();
 	}
-	
-	/**
-	 * This method returns the LocalHost IP
-	 * @return The LocalHost IP
-	 * @TODO This method needs to be placed into the Node super class as it is used by all the subclasses
-	 */
-	public InetAddress getLocalAddress() {
-		try {
-			return InetAddress.getByName("::1");
-		} catch (UnknownHostException e) {
-			e.printStackTrace();
-		}
-		return null;
-	}
 
 	/**
 	 * This method reads a message from the Node's config file
@@ -94,14 +81,8 @@ public class RelayNode extends Node implements Runnable {
 	
 	@Override
 	public void run() {
-		List<String> relayMessage;
-		relayMessage = readSocket();
+		readSocket();
 		this.addOutputSocket(port, serverAddress);
-		//Wait to receive input
-		//Relay data to other Nodes
-		for (String s : relayMessage) {
-			writeToSocket(s);
-		}
 		//Send message within this node's config file
 		try {
 			List<String> configMessage = readMessage();

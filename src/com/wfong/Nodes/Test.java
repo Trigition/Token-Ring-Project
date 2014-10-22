@@ -1,7 +1,9 @@
-package com.wfong.project1;
+package com.wfong.Nodes;
 
 import java.io.IOException;
 import java.lang.Thread;
+
+import com.wfong.project1.RelayNode;
 
 /**
  * This class is for testing the Node network
@@ -13,10 +15,8 @@ public class Test {
 	@SuppressWarnings("unused")
 	public static void main(String[] args) {
 		
-		ServerNode server;
 		RelayNode relay;
-		SenderNode client;
-		try {
+		/*try {
 			
 			Thread RelayThread = new Thread(relay  = new RelayNode("NodeB", "confB.txt"));
 			RelayThread.start();
@@ -32,7 +32,7 @@ public class Test {
 		} catch (IOException e) {
 			System.err.println("Error! Could not find config files!");
 			e.printStackTrace();
-		}
+		}*/
 
 	}
 

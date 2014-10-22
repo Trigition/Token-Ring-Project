@@ -1,7 +1,7 @@
 /**
  * 
  */
-package com.wfong.project1;
+package com.wfong.Nodes;
 import java.io.*;
 import java.net.*;
 import java.util.ArrayList;
@@ -31,9 +31,23 @@ public class Node{
 	 * @param NodeName The Node Name
 	 */
 	protected Node(String NodeName) {
-		//System.out.println("Creading: " + NodeName);
+		//System.out.println("Creating: " + NodeName);
 		this.NodeName = NodeName;
 		this.outputSockets = new ArrayList<Socket>();
+	}
+	
+	/**
+	 * This method handles getting the LocalHost address
+	 * @return The LocalHost IP
+	 * @TODO Move this method to the Node Superclass, it is used by all of the subclasses
+	 */
+	public InetAddress getLocalAddress() {
+		try {
+			return InetAddress.getByName("::1");
+		} catch (UnknownHostException e) {
+			e.printStackTrace();
+		}
+		return null;
 	}
 	
 	/**
@@ -77,8 +91,8 @@ public class Node{
 	
 	
 	/**
-	 * This method listens to the first inputSocket for accept calls
-	 * This method DOES NOT close the connected socket, it must be closed by another method
+	 * This method listens to the first inputSocket for accept calls.
+	 * This method DOES NOT close the connected socket, it must be closed by another method.
 	 * @return A socket to the connected client
 	 */
 	@SuppressWarnings("resource")
@@ -132,7 +146,7 @@ public class Node{
 	}
 	
 	/**
-	 * This method attempts to write a String to a Socket output stream
+	 * This method attempts to write a String to a Socket output stream.
 	 * @param message The message (a string) to be written to the socket
 	 * @param outputSocket The output socket
 	 */
@@ -154,7 +168,7 @@ public class Node{
 	}
 	
 	/**
-	 * Kills a connection to the server and properly closes all streams and sockets
+	 * Kills a connection to the server and properly closes all streams and sockets.
 	 * @throws IOException 
 	 */
 	public void killServerConnection() throws IOException {
@@ -185,7 +199,4 @@ public class Node{
 		builder.append("]");
 		return builder.toString();
 	}
-
-	
-	
 }

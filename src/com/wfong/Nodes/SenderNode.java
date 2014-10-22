@@ -1,4 +1,4 @@
-package com.wfong.project1;
+package com.wfong.Nodes;
 
 import java.io.BufferedReader;
 import java.io.FileReader;
@@ -8,6 +8,8 @@ import java.net.UnknownHostException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Scanner;
+
+import com.wfong.project1.Node;
 
 /**
  * This class is for sending data to a server Node.
@@ -45,20 +47,6 @@ public class SenderNode extends Node implements Runnable {
 		this.port = Integer.parseInt(configSettings.readLine());
 		//this.addOutputSocket(port, address);
 		configSettings.close();
-	}
-
-	/**
-	 * This method handles getting the LocalHost address
-	 * @return The LocalHost IP
-	 * @TODO Move this method to the Node Superclass, it is used by all of the subclasses
-	 */
-	public InetAddress getLocalAddress() {
-		try {
-			return InetAddress.getByName("::1");
-		} catch (UnknownHostException e) {
-			e.printStackTrace();
-		}
-		return null;
 	}
 	
 	/**
