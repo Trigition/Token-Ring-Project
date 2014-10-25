@@ -1,11 +1,9 @@
-package com.wfong.Nodes;
+package com.wfong.nodes;
 
 import java.io.BufferedReader;
 import java.io.FileReader;
 import java.io.IOException;
 import java.net.InetAddress;
-
-import com.wfong.project1.Node;
 
 /**
  * This class reads data from incoming client connections and prints it out to System out

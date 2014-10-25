@@ -1,4 +1,4 @@
-package com.wfong.Nodes;
+package com.wfong.nodes;
 
 import java.io.BufferedReader;
 import java.io.FileReader;
@@ -7,8 +7,6 @@ import java.net.InetAddress;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Scanner;
-
-import com.wfong.project1.Node;
 
 /**
  * This class relays data between client and server nodes (Acting as both)
@@ -33,6 +31,14 @@ public class RelayNode extends Node implements Runnable {
 		this.serverAddress = getLocalAddress();
 		this.addServerSocket(myPort, myAddress);
 		this.addOutputSocket(serverPort, serverAddress);
+	}
+	
+	public RelayNode(String NodeName) {
+		super(NodeName);
+		this.myAddress = getLocalAddress();
+		this.serverAddress = getLocalAddress();
+		this.port = this.addServerSocket(myAddress);
+		System.out.println("Listening on Port: " + this.port);
 	}
 	
 	/**
@@ -79,6 +85,14 @@ public class RelayNode extends Node implements Runnable {
 		return message;
 	}
 	
+	/**
+	 * Returns the Port this node is listening on
+	 * @return A port number
+	 */
+	public int getPort() {
+		return this.port;
+	}
+	
 	@Override
 	public void run() {
 		readSocket();
@@ -95,6 +109,7 @@ public class RelayNode extends Node implements Runnable {
 			e.printStackTrace();
 		}
 		//Kill connection to server
+		//TODO Remove this, all nodes must use interprocess communication to exit
 		try {
 			killServerConnection();
 		} catch (IOException e) {

@@ -1,15 +1,12 @@
-package com.wfong.Nodes;
+package com.wfong.nodes;
 
 import java.io.BufferedReader;
 import java.io.FileReader;
 import java.io.IOException;
 import java.net.InetAddress;
-import java.net.UnknownHostException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Scanner;
-
-import com.wfong.project1.Node;
 
 /**
  * This class is for sending data to a server Node.

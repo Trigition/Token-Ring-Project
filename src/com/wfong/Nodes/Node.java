@@ -1,7 +1,7 @@
 /**
  * 
  */
-package com.wfong.Nodes;
+package com.wfong.nodes;
 import java.io.*;
 import java.net.*;
 import java.util.ArrayList;
@@ -31,7 +31,7 @@ public class Node{
 	 * @param NodeName The Node Name
 	 */
 	protected Node(String NodeName) {
-		//System.out.println("Creating: " + NodeName);
+		System.out.println("Creating Node: " + NodeName);
 		this.NodeName = NodeName;
 		this.outputSockets = new ArrayList<Socket>();
 	}
@@ -51,7 +51,7 @@ public class Node{
 	}
 	
 	/**
-	 * This method attempts to add a Server Socket to the Node
+	 * This method attempts to add a Server Socket to the Node.
 	 * @param port The port to attempt to bind the Socket to
 	 * @param address The address associated with the Socket (Right now is LocalHost)
 	 */
@@ -67,6 +67,30 @@ public class Node{
 	}
 	
 	/**
+	 * This method attempts to create a Server Socket to the node.
+	 * @param address
+	 * @return The port number the Socket is listening to.
+	 */
+	public int addServerSocket(InetAddress address) {
+		//Iterate through all non-system critical ports until we find a free port
+		for (int i = 1025; i < 49151; i++) {
+			//System.out.println("Node " + this.NodeName + ": Attempting port " + i);
+			try {
+				this.inputSocket = new ServerSocket(i, 50, address);
+				return i;
+			} catch (IOException e) {
+				//System.err.println("Error! " + this.NodeName + " had a port number conflict...");
+				continue;
+			} catch (IllegalArgumentException e) {
+				e.printStackTrace();
+			}
+		}
+		//Severe error
+		System.err.println("ERROR! " + this.NodeName + " could not find a free port number!");
+		return 0;
+	}
+	
+	/**
 	 * This method attempts to create a socket that is bound to a specified Port with the associated IP address
 	 * @param port The port to attempt to bind the socket to
 	 * @param address The IP address associated with the socket (Right now is LocalHost)
@@ -74,6 +98,7 @@ public class Node{
 	public void addOutputSocket(int port, InetAddress address) {
 		try {
 			this.outputSockets.add(new Socket(address, port));
+			System.out.println("Node " + this.NodeName + " created output socket to " + this.outputSockets.get(0).toString());
 		} catch (UnknownHostException e) {
 			System.err.println(this.NodeName + ": Could not resolve IP!");
 			e.printStackTrace();
