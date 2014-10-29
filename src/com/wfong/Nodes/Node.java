@@ -146,6 +146,10 @@ public class Node{
 		return clientSocket;
 	}
 	
+	/**
+	 * This method returns a read STPLP Frame from the socket
+	 * @return The received STPLP Frame
+	 */
 	public STPLPFrame readSocket() {
 		Socket clientSocket = acceptClient();
 		DataInputStream input = null;
