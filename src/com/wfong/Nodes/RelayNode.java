@@ -25,7 +25,7 @@ public class RelayNode extends Node implements Runnable {
 	 * @param myPort The Nodes's Server Socket Port number
 	 * @param serverPort The Node's output Port number
 	 */
-	public RelayNode(String NodeName, int myPort, int serverPort) {
+	public RelayNode(int NodeName, int myPort, int serverPort) {
 		super(NodeName);
 		this.myAddress = getLocalAddress();
 		this.serverAddress = getLocalAddress();
@@ -33,7 +33,7 @@ public class RelayNode extends Node implements Runnable {
 		this.addOutputSocket(serverPort, serverAddress);
 	}
 	
-	public RelayNode(String NodeName) {
+	public RelayNode(int NodeName) {
 		super(NodeName);
 		this.myAddress = getLocalAddress();
 		this.serverAddress = getLocalAddress();
@@ -48,7 +48,7 @@ public class RelayNode extends Node implements Runnable {
 	 * @throws NumberFormatException Is thrown when the config file's port number section is incorrectly formatted
 	 * @throws IOException Is thrown when the config file does not exist
 	 */
-	public RelayNode(String NodeName, String FilePath) throws NumberFormatException, IOException {
+	public RelayNode(int NodeName, String FilePath) throws NumberFormatException, IOException {
 		super(NodeName);
 		//Set all of the class variables
 		this.myAddress = getLocalAddress();

@@ -7,13 +7,15 @@ import java.net.*;
 import java.util.ArrayList;
 import java.util.List;
 
+import com.wfong.token.STPLPFrame;
+
 
 /**
  * This class is the Node Superclass. It contains all the methods to receive and transmit data.
  * @author William Fong
  */
 public class Node{
-	private String NodeName;
+	private int NodeID;
 	private ServerSocket inputSocket;
 	private List<Socket> outputSockets;
 	
@@ -30,9 +32,9 @@ public class Node{
 	 * This constructor allows for the specification of the Node's name.
 	 * @param NodeName The Node Name
 	 */
-	protected Node(String NodeName) {
+	protected Node(int NodeName) {
 		System.out.println("Creating Node: " + NodeName);
-		this.NodeName = NodeName;
+		this.NodeID = NodeName;
 		this.outputSockets = new ArrayList<Socket>();
 	}
 	
@@ -60,9 +62,9 @@ public class Node{
 			this.inputSocket = new ServerSocket(port, 50, address);
 			
 		} catch (IOException e) {
-			System.err.println("Error! " + this.NodeName + " had a port number conflict!");
+			System.err.println("Error! " + this.NodeID + " had a port number conflict!");
 		} catch (IllegalArgumentException e) {
-			System.err.println("Error! " + this.NodeName + " could not create Socket with port number: " + port + ", port number is out of range!");
+			System.err.println("Error! " + this.NodeID + " could not create Socket with port number: " + port + ", port number is out of range!");
 		}
 	}
 	
@@ -86,7 +88,7 @@ public class Node{
 			}
 		}
 		//Severe error
-		System.err.println("ERROR! " + this.NodeName + " could not find a free port number!");
+		System.err.println("ERROR! " + this.NodeID + " could not find a free port number!");
 		return 0;
 	}
 	
@@ -98,12 +100,12 @@ public class Node{
 	public void addOutputSocket(int port, InetAddress address) {
 		try {
 			this.outputSockets.add(new Socket(address, port));
-			System.out.println("Node " + this.NodeName + " created output socket to " + this.outputSockets.get(0).toString());
+			System.out.println("Node " + this.NodeID + " created output socket to " + this.outputSockets.get(0).toString());
 		} catch (UnknownHostException e) {
-			System.err.println(this.NodeName + ": Could not resolve IP!");
+			System.err.println(this.NodeID + ": Could not resolve IP!");
 			e.printStackTrace();
 		} catch (IOException e) {
-			System.err.println(this.NodeName + ": Could not create socket! Timeout...");
+			System.err.println(this.NodeID + ": Could not create socket! Timeout...");
 			try {
 				Thread.sleep(1000);
 				addOutputSocket(port, address);
@@ -123,15 +125,15 @@ public class Node{
 	@SuppressWarnings("resource")
 	private Socket acceptClient() {
 		if (!this.inputSocket.isBound()) {
-			System.err.println(this.NodeName + " Cannot accept call! Listening sockets do not exist!");
+			System.err.println(this.NodeID + " Cannot accept call! Listening sockets do not exist!");
 			return null;
 		}
 		Socket clientSocket = new Socket();
 		while(!clientSocket.isBound()) {
 			try {
-				System.out.println(this.NodeName + " listening to connection requests...");
+				System.out.println(this.NodeID + " listening to connection requests...");
 				clientSocket = this.inputSocket.accept();
-				System.out.println(this.NodeName + ": Client accepted on Socket: " + clientSocket.toString());
+				System.out.println(this.NodeID + ": Client accepted on Socket: " + clientSocket.toString());
 				//Connection to a client has now been established
 				return clientSocket;
 			} catch (SocketTimeoutException T){
@@ -144,30 +146,25 @@ public class Node{
 		return clientSocket;
 	}
 	
-	/**
-	 * This method waits for a connection request and then creates a socket to read data from.
-	 */
-	public List<String> readSocket() {
+	public STPLPFrame readSocket() {
 		Socket clientSocket = acceptClient();
-		List<String> Messages = new ArrayList<String>();
-		String buffer;
+		DataInputStream input = null;
 		try {
-			BufferedReader input = new BufferedReader(new InputStreamReader(clientSocket.getInputStream()));
-			while(true) {
-				buffer = input.readLine();
-				if (buffer.startsWith("terminate")) {
-					System.out.println(this.NodeName + ": Received termination signal!");
-					clientSocket.close();
-					break;
-				}
-				Messages.add(buffer);
-				System.out.println(this.NodeName + ": Received: \"" + buffer + "\"");
-			}
+			input = new DataInputStream(clientSocket.getInputStream());
 		} catch (IOException e) {
 			e.printStackTrace();
 			return null;
 		}
-		return Messages;
+		STPLPFrame frame;
+		//Create buffer of maximum possible frame size
+		byte[] buffer = new byte[260];
+		try {
+			input.read(buffer);
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
+		frame = new STPLPFrame(buffer);
+		return frame;
 	}
 	
 	/**
@@ -175,6 +172,7 @@ public class Node{
 	 * @param message The message (a string) to be written to the socket
 	 * @param outputSocket The output socket
 	 */
+	@Deprecated
 	public void writeToSocket(String message) {
 		//System.out.println(this.NodeName + ": Attempting to write to socket...");
 		Socket outputSocket = this.outputSockets.get(0);
@@ -186,10 +184,32 @@ public class Node{
 			outputStream.println(message);
 		} catch (IOException e) {
 			e.printStackTrace();
-			System.err.println("Error! Node: " + this.NodeName + " could not write to socket!");
+			System.err.println("Error! Node: " + this.NodeID + " could not write to socket!");
 			return;
 		}
 		return;
+	}
+	
+	/**
+	 * This method attempts to write a STPLP Frame to the output socket.
+	 * @param frame The STPLP frame to be transmitted
+	 * @return Returns 0 upon successful transmission
+	 */
+	public int writeToSocket(STPLPFrame frame) {
+		Socket outputSocket = this.outputSockets.get(0);
+		DataOutputStream outputStream;
+		try {
+			//Create output stream
+			outputStream = new DataOutputStream(outputSocket.getOutputStream());
+			//Send message
+			outputStream.write(frame.getFrame());
+			outputStream.flush();
+		} catch (IOException e) {
+			e.printStackTrace();
+			System.err.println("Error! Node: " + this.NodeID + " could not write to socket!");
+			return 1;
+		}
+		return 0;
 	}
 	
 	/**
@@ -199,7 +219,7 @@ public class Node{
 	public void killServerConnection() throws IOException {
 		Socket outputSocket = this.outputSockets.get(0);
 		if(outputSocket.isClosed()) {
-			System.err.println(this.NodeName + ": Error! Could not close Socket: Socket is already closed...");
+			System.err.println(this.NodeID + ": Error! Could not close Socket: Socket is already closed...");
 		} else {
 			if(outputSocket.isConnected()) {
 				writeToSocket("terminate");
@@ -216,7 +236,7 @@ public class Node{
 	public String toString() {
 		StringBuilder builder = new StringBuilder();
 		builder.append("Node [NodeName=");
-		builder.append(NodeName);
+		builder.append(NodeID);
 		builder.append(", inputSocket=");
 		builder.append(inputSocket);
 		builder.append(", outputSockets=");

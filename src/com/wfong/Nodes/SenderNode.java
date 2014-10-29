@@ -22,7 +22,7 @@ public class SenderNode extends Node implements Runnable {
 	 * @param NodeName The Node's Name
 	 * @param port The Node's Port Number
 	 */
-	public SenderNode(String NodeName, int port) {
+	public SenderNode(int NodeName, int port) {
 		super(NodeName);
 		address = getLocalAddress();
 		addOutputSocket(port, address);
@@ -35,7 +35,7 @@ public class SenderNode extends Node implements Runnable {
 	 * @throws NumberFormatException Is thrown when the config file did not specify the port number correctly
 	 * @throws IOException Is thrown when the config file does not exit (Will not happen if the Node was constructed using the config file)
 	 */
-	public SenderNode(String NodeName, String FilePath) throws NumberFormatException, IOException {
+	public SenderNode(int NodeName, String FilePath) throws NumberFormatException, IOException {
 		super(NodeName);
 		address = getLocalAddress();
 		configMessage = FilePath;

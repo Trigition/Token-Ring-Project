@@ -18,7 +18,7 @@ public class ServerNode extends Node implements Runnable {
 	 * @param nodeName The Node's Name
 	 * @param port The Server Port number for connection requests
 	 */
-	public ServerNode(String nodeName, int port) {
+	public ServerNode(int nodeName, int port) {
 		super(nodeName);
 		serverAddress = getLocalAddress();
 		this.addServerSocket(port, serverAddress);
@@ -32,7 +32,7 @@ public class ServerNode extends Node implements Runnable {
 	 * @throws NumberFormatException Is thrown when the config file's port number section is incorrectly formatted
 	 * @throws IOException Is thrown when the config file does not exist
 	 */
-	public ServerNode(String nodeName, String FilePath) throws NumberFormatException, IOException {
+	public ServerNode(int nodeName, String FilePath) throws NumberFormatException, IOException {
 		super(nodeName);
 		serverAddress = getLocalAddress();
 		FileReader configFile = new FileReader(FilePath);

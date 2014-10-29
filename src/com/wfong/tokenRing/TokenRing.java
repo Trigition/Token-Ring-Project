@@ -3,7 +3,6 @@ package com.wfong.tokenRing;
 import java.util.ArrayList;
 import java.util.List;
 
-import com.wfong.nodes.Node;
 import com.wfong.nodes.RelayNode;
 
 public class TokenRing {
@@ -24,9 +23,9 @@ public class TokenRing {
 	
 	private int createRing (int numberOfNodes) {
 		//TODO Change next line to be a Monitor Node
-		this.Ring.add(new RelayNode(Integer.toString(0)));
+		this.Ring.add(new RelayNode(0));
 		for (int i = 1; i < numberOfNodes; i++) {
-			this.Ring.add(new RelayNode(Integer.toString(i)));
+			this.Ring.add(new RelayNode(i));
 			//Establish connection to created node
 			this.Ring.get(i - 1).addOutputSocket(this.Ring.get(i).getPort(), this.Ring.get(i).getLocalAddress());
 		}
