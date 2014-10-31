@@ -9,7 +9,7 @@ package com.wfong.tokenRing;
 public class Test {
 	
 	public static void main(String[] args) {
-		TokenRing testRing = new TokenRing(100);
+		TokenRing testRing = new TokenRing(5);
 	}
 
 }

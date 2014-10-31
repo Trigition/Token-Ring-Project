@@ -84,7 +84,7 @@ public class STPLPFrame {
 	 */
 	public boolean isToken() {
 		//Checks to see if any of the Token specifiers are true
-		if (frameValue[1] == 0 || tokenBit())
+		if (getFrameControl() == 0 || tokenBit())
 			return true;
 		return false;
 	}
@@ -126,11 +126,12 @@ public class STPLPFrame {
 	
 	/**
 	 * Returns status of the Frame Control Byte.
-	 * @return True if Frame is a token; False if otherwise.
+	 * @return Returns 0 if Frame is a Token<br>
+	 * Returns 1 if Frame is not a Token<br>
+	 * Returns 2 if Frame is a Kill Signal
 	 */
-	public boolean getFrameControl() {
-		
-		return false;
+	public byte getFrameControl() {
+		return this.frameValue[1];
 	}
 	
 	/**
@@ -138,7 +139,7 @@ public class STPLPFrame {
 	 * @return The Destination Address Byte.
 	 */
 	public int getDestinationAddress() {
-		return 0;
+		return this.frameValue[2];
 	}
 	
 	/**
@@ -146,7 +147,7 @@ public class STPLPFrame {
 	 * @return The Source Address Byte.
 	 */
 	public int getSourceAddress() {
-		return 0;
+		return this.frameValue[3];
 	}
 	
 	/**
@@ -154,7 +155,7 @@ public class STPLPFrame {
 	 * @return The Data Size (in Bytes)
 	 */
 	public int getDataSize() {
-		return 0;
+		return this.frameValue[4];
 	}
 	
 	/**
@@ -192,7 +193,6 @@ public class STPLPFrame {
 	 * This method returns the Frame Status.
 	 * @return Return 0 means Frame Rejection<br>
 	 * Return 1 means Frame Acceptance<br>
-	 * Return 4 means Network Kill Signal<br>
 	 */
 	public byte getFrameStatus() {
 		int sizeOfFrame = this.frameValue.length;

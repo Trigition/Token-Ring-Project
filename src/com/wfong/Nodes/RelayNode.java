@@ -88,10 +88,21 @@ public class RelayNode extends Node implements Runnable {
 		configSettings.close();
 	}
 
+	
+	/**
+	 * This method represents the Listen state of the Node.
+	 * @return Returns 0 upon reception of a Token Frame, or 1 upon Kill Signal Reception
+	 */
 	public int Listen() {
 		STPLPFrame inputFrame;
 		while(true) {
 			inputFrame = readSocket();
+			//Check if Frame is Kill Signal
+			if (inputFrame.getFrameControl() == 2) {
+				writeToSocket(inputFrame); //Pass the Kill Signal to the next node
+				return 1;
+			}
+			//Check if Frame is Token
 			if(inputFrame.isToken()) {
 				return 0; //Go to Transmit State
 			}
@@ -108,11 +119,8 @@ public class RelayNode extends Node implements Runnable {
 					System.out.println("Node " + this.getNodeID() + ": Received from "
 																	+ inputFrame.getSourceAddress() 
 																	+ ": " + inputFrame.dataToString());
-					writeToSocket(inputFrame);
+					writeToSocket(inputFrame); //Pass Frame to return back to Sender
 				}
-				//Otherwise Kill Signal has been received
-				writeToSocket(inputFrame); //Pass Kill Command to next node
-				return 1;
 			}
 			//Check to see if Frame was rejected
 			if (inputFrame.getSourceAddress() == this.getNodeID()) {
@@ -136,6 +144,11 @@ public class RelayNode extends Node implements Runnable {
 		}
 	}
 	
+	/**
+	 * This method represents the transmission state of the Node. This is only active
+	 * while the Node has a the token and has not gone beyond the total THT.
+	 * @return Returns 0 when THT has been depleted, or 1 when there is no more data to transmit
+	 */
 	public int Transmit(){
 		int currentTHT = 0;
 		STPLPFrame currentFrame;
@@ -144,6 +157,8 @@ public class RelayNode extends Node implements Runnable {
 			try {
 				buffer = this.inputFile.readLine();
 				currentFrame = new STPLPFrame(buffer, (byte) this.getNodeID());
+				currentTHT += currentFrame.getDataSize();
+				writeToSocket(currentFrame);
 			} catch (IOException e) {
 				//Either no data file or no data to transmit
 				System.out.println("No data to transmit");
@@ -165,9 +180,12 @@ public class RelayNode extends Node implements Runnable {
 	public void run() {
 		while(true) {
 			if (Listen() == 1) {
-				
+				//Kill Signal has been received
+				this.closeNode();
+				return;
 			}
-			//Transmit State
+			//Token has been received
+			Transmit();
 		}
 	}
 }
