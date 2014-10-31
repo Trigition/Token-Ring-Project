@@ -1,5 +1,7 @@
 package com.wfong.token;
 
+import java.util.Random;
+
 public class STPLPFrame {
 	//Byte Array for holding the Frame of n-Size.
 	private byte[] frameValue;
@@ -164,14 +166,36 @@ public class STPLPFrame {
 	}
 	
 	/**
-	 * A static method which determines the Token Bit in the Access Control byte.
-	 * @param accessControl The Access Control Byte.
-	 * @return True if the Token Bit is flipped.
+	 * This method returns a string representation of the Data within the Frame.
+	 * @return A String representation of the Frame Data
 	 */
-	public static boolean isToken(byte accessControl) {
-		byte bitMask = 0x10;
-		if ((accessControl & bitMask) == 0x10)
-			return true;
-		return false;
+	public String dataToString() {
+		return new String(this.frameValue);
+	}
+	
+	/**
+	 * <p>This method sets the Frame Status byte.</p>
+	 * <p>There's a 20% chance the Frame Status will be set so that the Frame will be <i>rejected</i>.
+	 * The other remaining 80% will result in the Frame Status being set so the Frame is <i>accepted</i>.</p>
+	 */
+	public void generateFrameStatus() {
+		int sizeOfFrame = this.frameValue.length;
+		Random i = new Random();
+		if(i.nextInt(100) < 20) {
+			//Frame Rejected
+			this.frameValue[sizeOfFrame - 1] = 0;
+		}
+		this.frameValue[sizeOfFrame - 1] = 1;
+	}
+	
+	/**
+	 * This method returns the Frame Status.
+	 * @return Return 0 means Frame Rejection<br>
+	 * Return 1 means Frame Acceptance<br>
+	 * Return 4 means Network Kill Signal<br>
+	 */
+	public byte getFrameStatus() {
+		int sizeOfFrame = this.frameValue.length;
+		return this.frameValue[sizeOfFrame - 1];
 	}
 }

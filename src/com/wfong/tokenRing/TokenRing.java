@@ -23,9 +23,9 @@ public class TokenRing {
 	
 	private int createRing (int numberOfNodes) {
 		//TODO Change next line to be a Monitor Node
-		this.Ring.add(new RelayNode(0));
+		this.Ring.add(new RelayNode("input-file-", 0, 1000));
 		for (int i = 1; i < numberOfNodes; i++) {
-			this.Ring.add(new RelayNode(i));
+			this.Ring.add(new RelayNode("input-file-", i, 1000));
 			//Establish connection to created node
 			this.Ring.get(i - 1).addOutputSocket(this.Ring.get(i).getPort(), this.Ring.get(i).getLocalAddress());
 		}

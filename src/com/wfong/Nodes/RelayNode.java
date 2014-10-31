@@ -1,10 +1,17 @@
 package com.wfong.nodes;
 
 import java.io.BufferedReader;
+import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.FileReader;
 import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
 import java.net.InetAddress;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Scanner;
@@ -21,7 +28,9 @@ public class RelayNode extends Node implements Runnable {
 	private InetAddress serverAddress;
 	private String configMessage;
 	private int port;
-	private FileReader inputFile;
+	private BufferedReader inputFile;
+	private int THT;
+	private List<STPLPFrame> frameBuffer;
 	
 	/**
 	 * This constructor allows for specification of the Node's Name as well as the receiving and sending port numbers
@@ -37,14 +46,17 @@ public class RelayNode extends Node implements Runnable {
 		this.addOutputSocket(serverPort, serverAddress);
 	}
 	
-	public RelayNode(String filePattern, int NodeName) {
+	public RelayNode(String filePattern, int NodeName, int THT) {
 		super(NodeName);
 		this.myAddress = getLocalAddress();
 		this.serverAddress = getLocalAddress();
 		this.port = this.addServerSocket(myAddress);
+		this.frameBuffer = new ArrayList<STPLPFrame>();
+		this.THT = THT;
+		Path path = Paths.get(filePattern + NodeName);
 		try {
-			this.inputFile = new FileReader(filePattern + NodeName);
-		} catch (FileNotFoundException e) {
+			this.inputFile = Files.newBufferedReader(path, StandardCharsets.US_ASCII);
+		} catch (IOException e) {
 			//File does not exist
 			this.inputFile = null;
 		}
@@ -78,19 +90,67 @@ public class RelayNode extends Node implements Runnable {
 
 	public int Listen() {
 		STPLPFrame inputFrame;
-		inputFrame = readSocket();
-		if(inputFrame.isToken()) {
-			return 0; //Go to Transmit State
+		while(true) {
+			inputFrame = readSocket();
+			if(inputFrame.isToken()) {
+				return 0; //Go to Transmit State
+			}
+			//If Frame was intended for this Node
+			if (inputFrame.getDestinationAddress() == this.getNodeID()) {
+				//Frame has reached its destination
+				inputFrame.generateFrameStatus();
+				//Determine if frame needs to be rejected or received
+				if(inputFrame.getFrameStatus() == 0) {
+					//Reject Frame
+					writeToSocket(inputFrame);
+					continue;
+				} else if (inputFrame.getFrameStatus() == 1) {
+					System.out.println("Node " + this.getNodeID() + ": Received from "
+																	+ inputFrame.getSourceAddress() 
+																	+ ": " + inputFrame.dataToString());
+					writeToSocket(inputFrame);
+				}
+				//Otherwise Kill Signal has been received
+				writeToSocket(inputFrame); //Pass Kill Command to next node
+				return 1;
+			}
+			//Check to see if Frame was rejected
+			if (inputFrame.getSourceAddress() == this.getNodeID()) {
+				if (inputFrame.getFrameStatus() == 0) {
+					//Frame was rejected
+					this.frameBuffer.add(inputFrame);
+					continue;
+				}
+				//Check to see if Frame was accepted
+				if (inputFrame.getFrameStatus() == 1) {
+					//Drain Buffer
+					inputFrame = null;
+					continue;
+				}
+				if (inputFrame.getFrameStatus() == 4) {
+					//Kill Network Signal has been received
+					writeToSocket(inputFrame);
+					return 1;
+				}
+			}
 		}
-		if (inputFrame.getDestinationAddress() == this.getNodeID()) {
-			//Frame has reached its destination
-			
-		}
-		return 1;
 	}
 	
-	public void Transmit() {
-		
+	public int Transmit(){
+		int currentTHT = 0;
+		STPLPFrame currentFrame;
+		String buffer;
+		while (currentTHT < this.THT) {
+			try {
+				buffer = this.inputFile.readLine();
+				currentFrame = new STPLPFrame(buffer, (byte) this.getNodeID());
+			} catch (IOException e) {
+				//Either no data file or no data to transmit
+				System.out.println("No data to transmit");
+				return 1;
+			}
+		}
+		return 0;
 	}
 	
 	/**
@@ -104,7 +164,9 @@ public class RelayNode extends Node implements Runnable {
 	@Override
 	public void run() {
 		while(true) {
-			//Listen State
+			if (Listen() == 1) {
+				
+			}
 			//Transmit State
 		}
 	}

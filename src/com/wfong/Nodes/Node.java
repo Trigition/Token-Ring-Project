@@ -250,8 +250,23 @@ public class Node{
 	}
 	
 	/**
+	 * This method 'closes' the Node by closing all used resources
+	 */
+	public void closeNode() {
+		Socket outputSocket = this.outputSockets.get(0);
+		if(!outputSocket.isClosed()) {
+			try {
+				outputSocket.shutdownOutput();
+				this.inputSocket.close();
+			} catch (IOException e) {
+				System.err.println("Severe error, Node" + this.NodeID + " could not properly close sockets");
+			}
+		}
+	}
+	
+	/**
 	 * This method returns a Node's ID.
-	 * @return The Node's ID.
+	 * @return The Node's ID.-
 	 */
 	public int getNodeID() {
 		return this.NodeID;
