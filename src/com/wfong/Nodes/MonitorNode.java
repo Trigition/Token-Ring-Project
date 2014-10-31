@@ -5,7 +5,7 @@ package com.wfong.nodes;
  * @author William
  *
  */
-public class MonitorNode extends Node {
+public class MonitorNode extends Node implements Runnable{
 
 	public MonitorNode() {
 		super();
@@ -15,6 +15,10 @@ public class MonitorNode extends Node {
 		super(NodeName);
 	}
 
-	
+	@Override
+	public void run() {
+		// TODO Auto-generated method stub
+		
+	}
 	
 }

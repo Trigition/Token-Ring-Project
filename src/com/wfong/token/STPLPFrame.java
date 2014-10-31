@@ -8,9 +8,40 @@ public class STPLPFrame {
 		this.frameValue = frameValue;
 	}
 	
-	
-	public STPLPFrame(String frame, byte sourceAddress) {
-		
+	/**
+	 * This is the main constructor for the STPLP class, it constructs a frame using
+	 * a formatted string from an input file.
+	 * @param frameString The string containing formatted data for constructing a STPLP Frame.
+	 * @param sourceAddress The source address.
+	 */
+	public STPLPFrame(String frameString, byte sourceAddress) {
+		byte accessControl;
+		byte frameControl;
+		byte destinationAddress;
+		byte dataSize;
+		byte[] data;
+		byte frameStatus;
+		//Begin extraction of data from file string
+		String[] strTok = frameString.split(",");
+		destinationAddress = (byte) (Integer.getInteger(strTok[0]) & 0xff);
+		dataSize = (byte) (Integer.getInteger(strTok[1]) & 0xff);
+		data = strTok[2].getBytes();
+		//Set other data fields
+		accessControl = 0; //TODO Implement various extra credit schemes
+		frameControl = 1; //Frame is NOT a token
+		frameStatus = 0; //Frame is newly constructed
+		//Construct new Frame Value
+		this.frameValue = new byte[dataSize + 6];
+		this.frameValue[0] = accessControl;
+		this.frameValue[1] = frameControl;
+		this.frameValue[2] = destinationAddress;
+		this.frameValue[3] = sourceAddress;
+		this.frameValue[4] = dataSize;
+		//Copy Data
+		for (int i = 0; i < dataSize; i++) {
+			this.frameValue[i + 5] = data[i];
+		}
+		this.frameValue[dataSize + 5] = frameStatus;
 	}
 	
 	/**
@@ -130,5 +161,17 @@ public class STPLPFrame {
 	 */
 	public byte[] getBinaryData() {
 		return null;
+	}
+	
+	/**
+	 * A static method which determines the Token Bit in the Access Control byte.
+	 * @param accessControl The Access Control Byte.
+	 * @return True if the Token Bit is flipped.
+	 */
+	public static boolean isToken(byte accessControl) {
+		byte bitMask = 0x10;
+		if ((accessControl & bitMask) == 0x10)
+			return true;
+		return false;
 	}
 }

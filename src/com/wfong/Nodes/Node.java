@@ -159,15 +159,32 @@ public class Node{
 			e.printStackTrace();
 			return null;
 		}
-		STPLPFrame frame;
+		STPLPFrame frame = null;
 		//Create buffer of maximum possible frame size
-		byte[] buffer = new byte[260];
+		byte[] header = new byte[5];
+		byte[] buffer;
+		int dataSize;
 		try {
-			input.read(buffer);
+			//Read in header
+			input.read(header, 0, 5);
+			dataSize = header[4];
+			buffer = new byte[dataSize + 6];
+			for (int i = 0; i < dataSize + 6; i++) {
+				if (i < 5) {
+					//Copy Header
+					buffer[i] = header[i];
+				} else if (i < dataSize){
+					//Read in data
+					buffer[i] = input.readByte();
+				}
+			}
+			//Read in frame status
+			buffer[dataSize + 5] = input.readByte();
+			frame = new STPLPFrame(buffer);		
 		} catch (IOException e) {
+			// TODO Auto-generated catch block
 			e.printStackTrace();
-		}
-		frame = new STPLPFrame(buffer);
+		}		
 		return frame;
 	}
 	
@@ -226,11 +243,18 @@ public class Node{
 			System.err.println(this.NodeID + ": Error! Could not close Socket: Socket is already closed...");
 		} else {
 			if(outputSocket.isConnected()) {
-				writeToSocket("terminate");
 				outputSocket.shutdownOutput();
 			}
 			outputSocket.close();
 		}
+	}
+	
+	/**
+	 * This method returns a Node's ID.
+	 * @return The Node's ID.
+	 */
+	public int getNodeID() {
+		return this.NodeID;
 	}
 
 	/* (non-Javadoc)

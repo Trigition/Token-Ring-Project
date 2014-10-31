@@ -1,12 +1,15 @@
 package com.wfong.nodes;
 
 import java.io.BufferedReader;
+import java.io.FileNotFoundException;
 import java.io.FileReader;
 import java.io.IOException;
 import java.net.InetAddress;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Scanner;
+
+import com.wfong.token.STPLPFrame;
 
 /**
  * This class relays data between client and server nodes (Acting as both)
@@ -18,6 +21,7 @@ public class RelayNode extends Node implements Runnable {
 	private InetAddress serverAddress;
 	private String configMessage;
 	private int port;
+	private FileReader inputFile;
 	
 	/**
 	 * This constructor allows for specification of the Node's Name as well as the receiving and sending port numbers
@@ -33,11 +37,17 @@ public class RelayNode extends Node implements Runnable {
 		this.addOutputSocket(serverPort, serverAddress);
 	}
 	
-	public RelayNode(int NodeName) {
+	public RelayNode(String filePattern, int NodeName) {
 		super(NodeName);
 		this.myAddress = getLocalAddress();
 		this.serverAddress = getLocalAddress();
 		this.port = this.addServerSocket(myAddress);
+		try {
+			this.inputFile = new FileReader(filePattern + NodeName);
+		} catch (FileNotFoundException e) {
+			//File does not exist
+			this.inputFile = null;
+		}
 		System.out.println("Listening on Port: " + this.port);
 	}
 	
@@ -66,23 +76,21 @@ public class RelayNode extends Node implements Runnable {
 		configSettings.close();
 	}
 
-	/**
-	 * This method reads a message from the Node's config file
-	 * @return A list of strings from the config file, line by line
-	 * @throws IOException Is thrown when the config file does not exist (will never happen if node was constructed using config file)
-	 */
-	public List<String> readMessage() throws IOException {
-		List<String> message = new ArrayList<String>();
-		FileReader configFile = new FileReader(this.configMessage);
-		Scanner configMessage = new Scanner(configFile);
-		//Skip past port specifications
-		configMessage.nextLine();
-		configMessage.nextLine();
-		while(configMessage.hasNext()) {
-			message.add(configMessage.nextLine());
+	public int Listen() {
+		STPLPFrame inputFrame;
+		inputFrame = readSocket();
+		if(inputFrame.isToken()) {
+			return 0; //Go to Transmit State
 		}
-		configMessage.close();
-		return message;
+		if (inputFrame.getDestinationAddress() == this.getNodeID()) {
+			//Frame has reached its destination
+			
+		}
+		return 1;
+	}
+	
+	public void Transmit() {
+		
 	}
 	
 	/**
@@ -95,26 +103,9 @@ public class RelayNode extends Node implements Runnable {
 	
 	@Override
 	public void run() {
-		readSocket();
-		this.addOutputSocket(port, serverAddress);
-		//Send message within this node's config file
-		try {
-			List<String> configMessage = readMessage();
-			for (String s : configMessage) {
-				writeToSocket(s);
-			}
-		} catch (IOException e) {
-			//Config file does not exist!
-			//Should never happen since Node is constructed using the config file
-			e.printStackTrace();
-		}
-		//Kill connection to server
-		//TODO Remove this, all nodes must use interprocess communication to exit
-		try {
-			killServerConnection();
-		} catch (IOException e) {
-			e.printStackTrace();
+		while(true) {
+			//Listen State
+			//Transmit State
 		}
 	}
-	
 }
