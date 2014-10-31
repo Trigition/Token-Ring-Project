@@ -26,7 +26,6 @@ import com.wfong.token.STPLPFrame;
 public class RelayNode extends Node implements Runnable {
 	private InetAddress myAddress;
 	private InetAddress serverAddress;
-	private String configMessage;
 	private int port;
 	private BufferedReader inputFile;
 	private int THT;
@@ -62,32 +61,6 @@ public class RelayNode extends Node implements Runnable {
 		}
 		System.out.println("Listening on Port: " + this.port);
 	}
-	
-	/**
-	 * This constructor creates a node using a specified config file
-	 * @param NodeName The Node's Name
-	 * @param FilePath The file path to the config file
-	 * @throws NumberFormatException Is thrown when the config file's port number section is incorrectly formatted
-	 * @throws IOException Is thrown when the config file does not exist
-	 */
-	public RelayNode(int NodeName, String FilePath) throws NumberFormatException, IOException {
-		super(NodeName);
-		//Set all of the class variables
-		this.myAddress = getLocalAddress();
-		this.serverAddress = getLocalAddress();
-		this.configMessage = FilePath;
-		//Set up the remaining variables using the config file data
-		FileReader configFile = new FileReader(FilePath);
-		BufferedReader configSettings = new BufferedReader(configFile);
-		int myPort;
-		//Set port numbers
-		myPort = Integer.parseInt(configSettings.readLine());
-		this.port = Integer.parseInt(configSettings.readLine());
-		//Attempt to create sockets using port numbers
-		this.addServerSocket(myPort, myAddress);
-		configSettings.close();
-	}
-
 	
 	/**
 	 * This method represents the Listen state of the Node.
@@ -162,9 +135,11 @@ public class RelayNode extends Node implements Runnable {
 			} catch (IOException e) {
 				//Either no data file or no data to transmit
 				System.out.println("No data to transmit");
+				writeToSocket(STPLPFrame.generateToken()); //Pass the Token
 				return 1;
 			}
 		}
+		writeToSocket(STPLPFrame.generateToken()); //Pass the Token
 		return 0;
 	}
 	

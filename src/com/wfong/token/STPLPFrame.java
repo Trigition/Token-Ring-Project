@@ -47,6 +47,20 @@ public class STPLPFrame {
 	}
 	
 	/**
+	 * Generates a Token
+	 * @return
+	 */
+	public static STPLPFrame generateToken() {
+		byte[] frameValue = new byte[6];
+		frameValue[0] = 0x8; //Set token bit
+		frameValue[1] = 0x0;
+		frameValue[2] = 0x0;
+		frameValue[3] = 0x0;
+		frameValue[4] = 0x0;
+		frameValue[5] = 0x0;
+		return new STPLPFrame(frameValue);
+	}
+	/**
 	 * Returns the whole frame in a char byte array.
 	 * @return The Frame.
 	 */
@@ -113,6 +127,10 @@ public class STPLPFrame {
 		if (tmp == 0x10)
 			return true;
 		return false;
+	}
+	
+	public void setMonitorBit() {
+		this.frameValue[0] = (byte) (this.frameValue[0] | 0x10);
 	}
 	
 	/**
