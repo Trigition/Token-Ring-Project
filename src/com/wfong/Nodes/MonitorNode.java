@@ -18,6 +18,11 @@ public class MonitorNode extends Node implements Runnable{
 		super();
 	}
 
+	/**
+	 * This constructor creates a Monitor node with the specified ID (usually 0) and a specified time out period (in milliseconds).
+	 * @param NodeName The Node ID.
+	 * @param timeOut The time out period in milliseconds.
+	 */
 	public MonitorNode(int NodeName, int timeOut) {
 		super(NodeName);
 		this.myAddress = getLocalAddress();
@@ -25,17 +30,30 @@ public class MonitorNode extends Node implements Runnable{
 		this.timeOut = timeOut;
 	}
 	
+	/**
+	 * This method monitors the Network for Garbled and Orphaned Frames. Lost tokens are handled
+	 * by the enclosing method.
+	 */
 	private void MonitorNetwork() {
 		STPLPFrame inputFrame;
 		inputFrame = readSocket();
+		//Check for Garbled Frame
 		if (!isFrameHealthy(inputFrame)) {
-			//Drain the Ring
+			//Frame is Garbled
+			for (long sysTime = System.currentTimeMillis(); System.currentTimeMillis() - sysTime < timeOut;) {
+				inputFrame = readSocket(); //Drain the Ring for entire time out period
+			}
+			writeToSocket(STPLPFrame.generateToken());
 		}
+		//Check for Orphan Frame
 		if (!inputFrame.isToken() && inputFrame.monitorBit()) {
 			inputFrame = null; //'Drain' the frame
 		} else if (!inputFrame.isToken()) {
+			//This is the Frame's first encounter with Monitor
+			//Set the monitor bit
 			inputFrame.setMonitorBit();
 		}
+		return;
 	}
 
 	/**
@@ -68,8 +86,27 @@ public class MonitorNode extends Node implements Runnable{
 	
 	@Override
 	public void run() {
-		while(true) {
-			MonitorNetwork();
+		//Define Timeout Thread
+		Thread timeOut = new Thread(new Runnable() {
+			@Override
+			public void run() {
+				MonitorNetwork();
+			}
+			
+		});
+		long startTime = System.currentTimeMillis();
+		long endTime = System.currentTimeMillis();
+		while(true) {		
+			timeOut.start();
+			//While the Thread is alive, see if time elapsed is more than Time Out period.
+			while(timeOut.isAlive()) {
+				if ((endTime - startTime) > this.timeOut) {
+					System.out.println("Monitor Node Timed Out. Re-issueing Token...");
+					writeToSocket(STPLPFrame.generateToken());
+					break;
+				}
+				endTime = System.nanoTime();
+			}
 		}
 	}
 	
