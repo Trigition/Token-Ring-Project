@@ -18,6 +18,7 @@ public class Node{
 	private int NodeID;
 	private ServerSocket inputSocket;
 	private List<Socket> outputSockets;
+	private Socket clientSocket;
 	
 	/**
 	 * This is the default constructor for a Node
@@ -53,6 +54,14 @@ public class Node{
 	}
 	
 	/**
+	 * Returns the client socket of the Node.
+	 * @return A Socket object.
+	 */
+	public Socket getClientSocket() {
+		return this.clientSocket;
+	}
+	
+	/**
 	 * This method attempts to add a Server Socket to the Node.
 	 * @param port The port to attempt to bind the Socket to
 	 * @param address The address associated with the Socket (Right now is LocalHost)
@@ -76,7 +85,7 @@ public class Node{
 	public int addServerSocket(InetAddress address) {
 		//Iterate through all non-system critical ports until we find a free port
 		for (int i = 1025; i < 49151; i++) {
-			//System.out.println("Node " + this.NodeName + ": Attempting port " + i);
+			//System.out.println("Node " + this.getNodeID() + ": Attempting port " + i);
 			try {
 				this.inputSocket = new ServerSocket(i, 50, address);
 				return i;
@@ -101,6 +110,7 @@ public class Node{
 		try {
 			this.outputSockets.add(new Socket(address, port));
 			System.out.println("Node " + this.NodeID + " created output socket to " + this.outputSockets.get(0).toString());
+			return;
 		} catch (UnknownHostException e) {
 			System.err.println(this.NodeID + ": Could not resolve IP!");
 			e.printStackTrace();
@@ -122,20 +132,19 @@ public class Node{
 	 * This method DOES NOT close the connected socket, it must be closed by another method.
 	 * @return A socket to the connected client
 	 */
-	@SuppressWarnings("resource")
-	private Socket acceptClient() {
+	public void acceptClient() {
 		if (!this.inputSocket.isBound()) {
 			System.err.println(this.NodeID + " Cannot accept call! Listening sockets do not exist!");
-			return null;
+			return;
 		}
-		Socket clientSocket = new Socket();
-		while(!clientSocket.isBound()) {
+		this.clientSocket = new Socket();
+		while(!this.clientSocket.isBound()) {
 			try {
-				System.out.println(this.NodeID + " listening to connection requests...");
+			//	System.out.println("Node " + this.NodeID + " listening to connection requests...");
 				clientSocket = this.inputSocket.accept();
-				System.out.println(this.NodeID + ": Client accepted on Socket: " + clientSocket.toString());
+				//System.out.println("Node " + this.NodeID + ": Client accepted on Socket: " + clientSocket.toString());
 				//Connection to a client has now been established
-				return clientSocket;
+				return;
 			} catch (SocketTimeoutException T){
 				System.out.println("Server listen timeout...");
 			} catch (IOException e) {
@@ -143,7 +152,7 @@ public class Node{
 				break;
 			}
 		}
-		return clientSocket;
+		return;
 	}
 	
 	/**
@@ -151,10 +160,12 @@ public class Node{
 	 * @return The received STPLP Frame
 	 */
 	public STPLPFrame readSocket() {
-		Socket clientSocket = acceptClient();
 		DataInputStream input = null;
+		//System.out.println("Node " + this.NodeID + " is now Reading Socket...");
 		try {
-			input = new DataInputStream(clientSocket.getInputStream());
+			//System.out.println("\tNode " + this.getNodeID() + " attempting to accept socket...");
+			input = new DataInputStream(this.clientSocket.getInputStream());
+			//System.out.println("\tNode " + this.getNodeID() + " got input signal");
 		} catch (IOException e) {
 			e.printStackTrace();
 			return null;
@@ -164,26 +175,30 @@ public class Node{
 		byte[] header = new byte[5];
 		byte[] buffer;
 		int dataSize;
+		//System.out.println("Node " + this.getNodeID());
 		try {
 			//Read in header
+			//System.out.println("\tReading in Header...");
 			input.read(header, 0, 5);
-			dataSize = header[4];
+			dataSize = (header[4] & 0xff);
 			buffer = new byte[dataSize + 6];
 			for (int i = 0; i < dataSize + 6; i++) {
 				if (i < 5) {
 					//Copy Header
 					buffer[i] = header[i];
-				} else if (i < dataSize){
+				} else if (i < dataSize + 5) {
 					//Read in data
 					buffer[i] = input.readByte();
 				}
 			}
 			//Read in frame status
 			buffer[dataSize + 5] = input.readByte();
-			frame = new STPLPFrame(buffer);		
+			frame = new STPLPFrame(buffer);
+			//System.out.println("Node: " + this.NodeID + " Input Frame: ");
+			//System.out.println(frame.toString());
 		} catch (IOException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
+			System.out.println("Reading garbage");
+			return null;
 		}		
 		return frame;
 	}
@@ -223,8 +238,9 @@ public class Node{
 			//Create output stream
 			outputStream = new DataOutputStream(outputSocket.getOutputStream());
 			//Send message
+			//System.out.println("Node " + this.NodeID + " Output Frame: ");
+			//System.out.println(frame.toString());
 			outputStream.write(frame.getFrame());
-			outputStream.flush();
 		} catch (IOException e) {
 			e.printStackTrace();
 			System.err.println("Error! Node: " + this.NodeID + " could not write to socket!");

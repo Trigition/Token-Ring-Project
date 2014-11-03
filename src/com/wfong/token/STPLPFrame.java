@@ -24,31 +24,35 @@ public class STPLPFrame {
 		byte[] data;
 		byte frameStatus;
 		//Begin extraction of data from file string
+		//System.out.println("Converting String: " + frameString);
 		String[] strTok = frameString.split(",");
-		destinationAddress = (byte) (Integer.getInteger(strTok[0]) & 0xff);
-		dataSize = (byte) (Integer.getInteger(strTok[1]) & 0xff);
+		destinationAddress = (byte) (Integer.parseInt(strTok[0]) & 0xff);
+		//System.out.println("\tDestination Address: " + (destinationAddress & 0xff));
+		dataSize = (byte) (Integer.parseInt(strTok[1]) & 0xff);
 		data = strTok[2].getBytes();
+		//System.out.println("\tData Size: " + (dataSize & 0xff));
 		//Set other data fields
 		accessControl = 0; //TODO Implement various extra credit schemes
 		frameControl = 1; //Frame is NOT a token
 		frameStatus = 0; //Frame is newly constructed
 		//Construct new Frame Value
-		this.frameValue = new byte[dataSize + 6];
+		//Any Logical AND with 0xff is to Compensate for Java's naughty signed bit habit.
+		this.frameValue = new byte[(dataSize & 0xff) + 6];
 		this.frameValue[0] = accessControl;
 		this.frameValue[1] = frameControl;
 		this.frameValue[2] = destinationAddress;
 		this.frameValue[3] = sourceAddress;
 		this.frameValue[4] = dataSize;
 		//Copy Data
-		for (int i = 0; i < dataSize; i++) {
+		for (int i = 0; i < (dataSize & 0xff); i++) {
 			this.frameValue[i + 5] = data[i];
 		}
-		this.frameValue[dataSize + 5] = frameStatus;
+		this.frameValue[(dataSize & 0xff) + 5] = frameStatus;
 	}
 	
 	/**
-	 * Generates a Token
-	 * @return
+	 * Generates a Token.
+	 * @return A token.
 	 */
 	public static STPLPFrame generateToken() {
 		byte[] frameValue = new byte[6];
@@ -60,6 +64,38 @@ public class STPLPFrame {
 		frameValue[5] = 0x0;
 		return new STPLPFrame(frameValue);
 	}
+	
+	/**
+	 * Generates a Completion Signal.
+	 * @param sourceAddress The source of the signal.
+	 * @return A new STPLP Frame.
+	 */
+	public static STPLPFrame generateCompletedSig(byte sourceAddress) {
+		byte[] frameValue = new byte[6];
+		frameValue[0] = 0x0;
+		frameValue[1] = 0x0;
+		frameValue[2] = 0x0;
+		frameValue[3] = sourceAddress;
+		frameValue[4] = 0x0;
+		frameValue[5] = 0x5; //Generate Completed Signal
+		return new STPLPFrame(frameValue);
+	}
+	
+	/**
+	 * Generates a Kill Signal.
+	 * @return A kill signal for the network.
+	 */
+	public static STPLPFrame generateKillSig() {
+		byte[] frameValue = new byte[6];
+		frameValue[0] = 0x0;
+		frameValue[1] = 0x0;
+		frameValue[2] = 0x0;
+		frameValue[3] = 0x0;
+		frameValue[4] = 0x0;
+		frameValue[5] = 0x4; //Generate kill signal
+		return new STPLPFrame(frameValue);
+	}
+	
 	/**
 	 * Returns the whole frame in a char byte array.
 	 * @return The Frame.
@@ -74,10 +110,19 @@ public class STPLPFrame {
 	@Override
 	public String toString() {
 		StringBuilder builder = new StringBuilder();
-		builder.append("Source Address:........" + this.getSourceAddress() + "\n");
-		builder.append("Destination Address:..." + this.getDestinationAddress() + "\n");
-		builder.append("Data Size:............." + this.getDataSize());
+		builder.append("\tSource Address:........" + this.getSourceAddress() + "\n");
+		builder.append("\tDestination Address:..." + this.getDestinationAddress() + "\n");
+		builder.append("\tData Size:............." + this.getDataSize() + "\n");
+		//builder.append("\tData:.................." + this.dataToString());
 		return builder.toString();
+	}
+	
+	public void printHeader() {
+		System.out.println("Byte[0]: " + (this.frameValue[0] & 0xff) +
+						   ", Byte[1]: " + (this.frameValue[1] & 0xff) +
+						   ", Byte[2]: " + (this.frameValue[2] & 0xff) +
+						   ", Byte[3]: " + (this.frameValue[0] & 0xff) +
+						   ", Byte[4]: " + (this.frameValue[0] & 0xff));
 	}
 	
 	//Access Control Methods
@@ -129,8 +174,18 @@ public class STPLPFrame {
 		return false;
 	}
 	
+	/**
+	 * Sets the Monitor Bit to be 1
+	 */
 	public void setMonitorBit() {
 		this.frameValue[0] = (byte) (this.frameValue[0] | 0x10);
+	}
+	
+	/**
+	 * Sets the Monitor Bit to be 0
+	 */
+	public void zeroMonitorBit() {
+		this.frameValue[0] = (byte) (this.frameValue[0] & 0x0);
 	}
 	
 	/**
@@ -148,8 +203,8 @@ public class STPLPFrame {
 	 * Returns 1 if Frame is not a Token<br>
 	 * Returns 2 if Frame is a Kill Signal
 	 */
-	public byte getFrameControl() {
-		return this.frameValue[1];
+	public int getFrameControl() {
+		return (this.frameValue[1] & 0xff);
 	}
 	
 	/**
@@ -157,7 +212,7 @@ public class STPLPFrame {
 	 * @return The Destination Address Byte.
 	 */
 	public int getDestinationAddress() {
-		return this.frameValue[2];
+		return (this.frameValue[2] & 0xff);
 	}
 	
 	/**
@@ -165,7 +220,7 @@ public class STPLPFrame {
 	 * @return The Source Address Byte.
 	 */
 	public int getSourceAddress() {
-		return this.frameValue[3];
+		return (this.frameValue[3] & 0xff);
 	}
 	
 	/**
@@ -173,7 +228,7 @@ public class STPLPFrame {
 	 * @return The Data Size (in Bytes)
 	 */
 	public int getDataSize() {
-		return this.frameValue[4];
+		return (this.frameValue[4] & 0xff);
 	}
 	
 	/**
@@ -181,7 +236,11 @@ public class STPLPFrame {
 	 * @return A byte array containing Data.
 	 */
 	public byte[] getBinaryData() {
-		return null;
+		byte[] data = new byte[getDataSize()];
+		for (int i = 0; i < getDataSize(); i++) {
+			data[i] = this.frameValue[i + 5];
+		}
+		return data;
 	}
 	
 	/**
@@ -189,7 +248,7 @@ public class STPLPFrame {
 	 * @return A String representation of the Frame Data
 	 */
 	public String dataToString() {
-		return new String(this.frameValue);
+		return new String(getBinaryData());
 	}
 	
 	/**
@@ -200,17 +259,29 @@ public class STPLPFrame {
 	public void generateFrameStatus() {
 		int sizeOfFrame = this.frameValue.length;
 		Random i = new Random();
-		if(i.nextInt(100) < 20) {
+		if(i.nextInt(100) < 90) {
 			//Frame Rejected
-			this.frameValue[sizeOfFrame - 1] = 0;
+			this.frameValue[sizeOfFrame - 1] = 0x3;
+			return;
 		}
-		this.frameValue[sizeOfFrame - 1] = 1;
+		this.frameValue[sizeOfFrame - 1] = 0x2;
+	}
+	
+	/**
+	 * Sets the Frame Status to val.
+	 * @param val
+	 */
+	public void setFrameStatus(byte val) {
+		int sizeOfFrame = this.frameValue.length;
+		this.frameValue[sizeOfFrame - 1] = val;
 	}
 	
 	/**
 	 * This method returns the Frame Status.
-	 * @return Return 0 means Frame Rejection<br>
-	 * Return 1 means Frame Acceptance<br>
+	 * @return Return 2 means Frame Acceptance<br>
+	 * Return 3 means Frame Rejection<br>
+	 * Return 4 means Kill Signal<br>
+	 * Return 4 means a Node has finished all transmissions
 	 */
 	public byte getFrameStatus() {
 		int sizeOfFrame = this.frameValue.length;
