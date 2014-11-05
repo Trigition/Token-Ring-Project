@@ -6,12 +6,14 @@ import java.io.IOException;
 import java.io.PrintWriter;
 import java.io.UnsupportedEncodingException;
 import java.net.InetAddress;
+import java.net.SocketTimeoutException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Random;
 
 import com.wfong.token.STPLPFrame;
 
@@ -28,6 +30,7 @@ public class RelayNode extends Node implements Runnable {
 	private PrintWriter outputFile;
 	private int THT;
 	private List<STPLPFrame> frameBuffer;
+	private List<STPLPFrame> waitingFrames;
 	private boolean hasSentComplete;
 	/**
 	 * This constructor allows for specification of the Node's Name as well as the receiving and sending port numbers
@@ -35,21 +38,33 @@ public class RelayNode extends Node implements Runnable {
 	 * @param myPort The Nodes's Server Socket Port number
 	 * @param serverPort The Node's output Port number
 	 */
-	public RelayNode(int NodeName, int myPort, int serverPort) {
-		super(NodeName);
+	public RelayNode(int NodeName, int myPort, int serverPort, int timeOutPeriod) {
+		super(NodeName, timeOutPeriod);
 		this.myAddress = getLocalAddress();
 		this.serverAddress = getLocalAddress();
 		this.addServerSocket(myPort, myAddress);
 		this.addOutputSocket(serverPort, serverAddress);
 	}
 	
-	public RelayNode(String filePattern, int NodeName, int THT) {
-		super(NodeName);
+	/**
+	 * This creates a node with a specified Node ID, THT, timeout period and an input file to read<br>
+	 * frames from.
+	 * @param filePattern The file pattern associated with the node.<br>
+	 * It will access "input-file-n" where n is the Node ID.
+	 * @param NodeName The Node ID number to be associated with the node.
+	 * @param THT The THT for the Node, this determines when the node<br>
+	 * should end transmission and enter the listen state.
+	 * @param timeOutPeriod The time out period for the node (is not used)<br>
+	 */
+	public RelayNode(String filePattern, int NodeName, int THT, int timeOutPeriod) {
+		super(NodeName, timeOutPeriod);
 		this.myAddress = getLocalAddress();
 		this.serverAddress = getLocalAddress();
 		this.port = this.addServerSocket(myAddress);
 		this.frameBuffer = new ArrayList<STPLPFrame>();
+		this.waitingFrames = new ArrayList<STPLPFrame> ();
 		this.hasSentComplete = false;
+		//Attempt to open output file
 		try {
 			outputFile = new PrintWriter("output-file-" + this.getNodeID(), "UTF-8");
 		} catch (FileNotFoundException e1) {
@@ -59,13 +74,13 @@ public class RelayNode extends Node implements Runnable {
 		}
 		this.THT = THT;
 		Path path = Paths.get(filePattern + NodeName);
+		//Attempt to open input file
 		try {
 			this.inputFile = Files.newBufferedReader(path, StandardCharsets.US_ASCII);
 		} catch (IOException e) {
 			//File does not exist
 			this.inputFile = null;
 		}
-		//System.out.println("Node " + this.getNodeID() + " Listening on Port: " + this.port);
 	}
 	
 	/**
@@ -73,13 +88,28 @@ public class RelayNode extends Node implements Runnable {
 	 * @return Returns 0 upon reception of a Token Frame, or 1 upon Kill Signal Reception
 	 */
 	public int Listen() {
-		//System.out.println("Node " + this.getNodeID() + " is entering Listen State!");
 		STPLPFrame inputFrame;
 		while(true) {
-			//System.out.println("Node " + this.getNodeID() + " Waiting for data input.");
-			inputFrame = readSocket();
-			//System.out.println("Node " + this.getNodeID() + " Received data...");
-
+			//Read from input socket a new frame
+			try {
+				inputFrame = readSocket();
+			} catch (SocketTimeoutException e) {
+				System.out.println("Node " + this.getNodeID() + " timed out...");
+				continue;
+			}
+			//Check to see if the incoming frame is empty
+			if (inputFrame == null) {
+				//Bad frame
+				continue;
+			}
+			//Check to see if frame is healthy
+			//This should pass any garbled frames however corruption of
+			//data size caused this node to be unable to differentiate
+			//when a new frame started
+			if (!MonitorNode.isFrameHealthy(inputFrame)) {
+				writeToSocket(inputFrame);
+				continue;
+			}
 			//Check to see if Frame is Kill Signal
 			if (inputFrame.getFrameStatus() == 4) {
 				//Kill Network Signal has been received
@@ -93,12 +123,8 @@ public class RelayNode extends Node implements Runnable {
 				continue;
 			}
 			
-			//Check if Frame is Token
-			if(inputFrame.isToken()) {
-				return 0; //Go to Transmit State
-			}
 			//If Frame was intended for this Node
-			if (inputFrame.getDestinationAddress() == this.getNodeID()) {
+			if (inputFrame.getDestinationAddress() == this.getNodeID() && inputFrame.getFrameStatus() == 0) {
 				//Frame has reached its destination
 				inputFrame.generateFrameStatus();
 				//Determine if frame needs to be rejected or received
@@ -115,6 +141,7 @@ public class RelayNode extends Node implements Runnable {
 				}
 			}
 			//Check to see if Frame was rejected
+			this.waitingFrames.remove(inputFrame); //Frame has not been lost in the network
 			if (inputFrame.getSourceAddress() == this.getNodeID()) {
 				if (inputFrame.getFrameStatus() == 3) {
 					//Frame was rejected
@@ -125,11 +152,17 @@ public class RelayNode extends Node implements Runnable {
 				}
 				//Check to see if Frame was accepted
 				if (inputFrame.getFrameStatus() == 2) {
-					//Drain Buffer
-					inputFrame = null;
+					Random rand = new Random();
+						if (rand.nextInt(100) < 2) {
+							writeToSocket(inputFrame); //Create Orphan Frame
+						}
 					continue;
 				}
 
+			}		
+			//Check if Frame is Token
+			if(inputFrame.isToken()) {
+				return 0; //Go to Transmit State
 			}
 			writeToSocket(inputFrame);
 		}
@@ -141,34 +174,42 @@ public class RelayNode extends Node implements Runnable {
 	 * @return Returns 0 when THT has been depleted, or 1 when there is no more data to transmit
 	 */
 	public int Transmit(){
-		//System.out.println("Node " + this.getNodeID() + " is entering Transmit State!");
 		int currentTHT = 0;
 		STPLPFrame currentFrame;
-		String buffer;
+		String buffer = null;
+		//While the THT has not been surpassed
 		while (currentTHT < this.THT) {
 			try {
+				//Retransmit any frames that have failed to reach their destinations
+				if (!this.frameBuffer.isEmpty()){
+					//Frames in buffer for retransmission
+					currentFrame = this.frameBuffer.remove(0);
+					currentTHT += currentFrame.getDataSize();
+					writeToSocket(currentFrame.garbleFrame());
+					this.waitingFrames.add(currentFrame);
+					continue;
+				}
+				//If no frames need retransmission, resume reading the input file
 				if (this.frameBuffer.isEmpty()) {
-					//No Frames in buffer, can continue transmission
 					buffer = this.inputFile.readLine();
+					//Check see if at EOF
 					if (buffer == null) {
-						if (hasSentComplete == false) {
-							writeToSocket(STPLPFrame.generateCompletedSig((byte) (this.getNodeID() & 0xff)));
-							hasSentComplete = true;
+						//Node has successfully transmitted all of its OWN data
+						if (this.hasSentComplete == false && this.waitingFrames.isEmpty()) {
+							//Notify monitor of completion
+							writeToSocket(STPLPFrame.generateCompletedSig((byte) this.getNodeID()));
+							this.hasSentComplete = true;
 						}
+						//No longer needs to transmit
 						writeToSocket(STPLPFrame.generateToken());
 						return 1;
 					}
+					//Transmit the next line in input file
 					currentFrame = new STPLPFrame(buffer, (byte) this.getNodeID());
 					currentTHT += currentFrame.getDataSize();
-					//System.out.println("Node " + this.getNodeID() + " is transmitting " + currentFrame.toString());
-					writeToSocket(currentFrame);
-				} else {
-					//Frames in buffer for retransmission
-					//System.out.println("Node " + this.getNodeID() + ": Retransmitting Rejected Frame...");
-					currentFrame = this.frameBuffer.remove(0);
-					//System.out.println(this.frameBuffer.size() + " remain in retransmission buffer...");
-					currentTHT += currentFrame.getDataSize();
-					writeToSocket(currentFrame);
+					writeToSocket(currentFrame.garbleFrame());
+					this.waitingFrames.add(currentFrame);
+					continue;
 				}
 			} catch (IOException e) {
 				//Either no data file or no data to transmit
@@ -178,8 +219,12 @@ public class RelayNode extends Node implements Runnable {
 				return 1;
 			}
 		}
-		//System.out.println("Node: " + this.getNodeID() + " Has surpassed THT. Passing token..");
-		writeToSocket(STPLPFrame.generateToken()); //Pass the Token
+		Random rand = new Random();
+		//95% Chance to successfully transmit the token
+		if (rand.nextInt(100) < 95)
+			writeToSocket(STPLPFrame.generateToken()); //Pass the Token
+//		else
+//			System.out.println("Node " + this.getNodeID() + " lost the token!");
 		return 0;
 	}
 	
@@ -191,22 +236,27 @@ public class RelayNode extends Node implements Runnable {
 		return this.port;
 	}
 	
+	/**
+	 * This functions is implementing the required Runnable method
+	 */
 	@Override
 	public void run() {
-		System.out.println("Initializing Node " + this.getNodeID());
 		this.acceptClient();
 		if (this.getNodeID() == 1) {
-			System.out.println("\tGenerating token");
+			//Node 1 generates the token and passes it to the neighboring node
 			writeToSocket(STPLPFrame.generateToken());
 		}
 		while(true) {
 			if (Listen() == 1) {
 				//Kill Signal has been received
-				System.out.println("Node: " + this.getNodeID() + " has received Kill Order 66");
+				//System.out.println("Node: " + this.getNodeID() + " has received Kill Order 66");
 				this.closeNode();
 				this.outputFile.close();
 				return;
 			}
+			//Any frames that have not been ACK nor NAK are added for retransmission
+			this.frameBuffer.addAll(waitingFrames);
+			this.waitingFrames.clear();
 			Transmit();
 		}
 	}

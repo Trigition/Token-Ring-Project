@@ -1,4 +1,4 @@
-<project name ="Project1" default="dist" basedir=".">
+<project name ="Token-Ring-Project" default="dist" basedir=".">
 	<description>Required description for xml file</description>
 	<property name="src" location="src" />
 	<property name="build" location="bin" />
@@ -14,9 +14,9 @@
   	</target>
 
 	<target name="dist" depends="compile" description="Move files into a single jar file">
-    		<jar jarfile="wfong_p1.jar" basedir="${build}">
+    		<jar jarfile="wfong_p2.jar" basedir="${build}">
       			<manifest>
-        			<attribute name="Main-Class" value="com.wfong.project1.Test" />
+        			<attribute name="Main-Class" value="com.wfong.tokenRing.Test" />
      			</manifest>
     		</jar>
   	</target>

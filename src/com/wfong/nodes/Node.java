@@ -19,6 +19,7 @@ public class Node{
 	private ServerSocket inputSocket;
 	private List<Socket> outputSockets;
 	private Socket clientSocket;
+	private int timeOutPeriod;
 	
 	/**
 	 * This is the default constructor for a Node
@@ -33,9 +34,10 @@ public class Node{
 	 * This constructor allows for the specification of the Node's name.
 	 * @param NodeName The Node Name
 	 */
-	protected Node(int NodeName) {
-		System.out.println("Creating Node: " + NodeName);
+	protected Node(int NodeName, int timeOutPeriod) {
+		//System.out.println("Creating Node: " + NodeName);
 		this.NodeID = NodeName;
+		this.timeOutPeriod = timeOutPeriod;
 		this.outputSockets = new ArrayList<Socket>();
 	}
 	
@@ -109,7 +111,7 @@ public class Node{
 	public void addOutputSocket(int port, InetAddress address) {
 		try {
 			this.outputSockets.add(new Socket(address, port));
-			System.out.println("Node " + this.NodeID + " created output socket to " + this.outputSockets.get(0).toString());
+			//System.out.println("Node " + this.NodeID + " created output socket to " + this.outputSockets.get(0).toString());
 			return;
 		} catch (UnknownHostException e) {
 			System.err.println(this.NodeID + ": Could not resolve IP!");
@@ -159,11 +161,12 @@ public class Node{
 	 * This method returns a read STPLP Frame from the socket
 	 * @return The received STPLP Frame
 	 */
-	public STPLPFrame readSocket() {
+	public STPLPFrame readSocket() throws SocketTimeoutException{
 		DataInputStream input = null;
 		//System.out.println("Node " + this.NodeID + " is now Reading Socket...");
 		try {
 			//System.out.println("\tNode " + this.getNodeID() + " attempting to accept socket...");
+			clientSocket.setSoTimeout(this.timeOutPeriod);
 			input = new DataInputStream(this.clientSocket.getInputStream());
 			//System.out.println("\tNode " + this.getNodeID() + " got input signal");
 		} catch (IOException e) {
@@ -173,34 +176,56 @@ public class Node{
 		STPLPFrame frame = null;
 		//Create buffer of maximum possible frame size
 		byte[] header = new byte[5];
-		byte[] buffer;
+		byte[] buffer = null;
+		byte[] finalFrame = null;
 		int dataSize;
-		//System.out.println("Node " + this.getNodeID());
+		int bytesRead;
 		try {
 			//Read in header
-			//System.out.println("\tReading in Header...");
 			input.read(header, 0, 5);
 			dataSize = (header[4] & 0xff);
-			buffer = new byte[dataSize + 6];
-			for (int i = 0; i < dataSize + 6; i++) {
-				if (i < 5) {
-					//Copy Header
-					buffer[i] = header[i];
-				} else if (i < dataSize + 5) {
-					//Read in data
-					buffer[i] = input.readByte();
+			buffer = new byte[dataSize + 1];
+			bytesRead = input.read(buffer, 0, dataSize + 1);
+			finalFrame = new byte[dataSize + 6];
+			for (int i = 0; i < bytesRead + 5; i++) {
+			if (i < 5) {
+				//Copy Header
+				finalFrame[i] = header[i];
+			} else if (i < bytesRead + 5) {
+				//Read in data
+				finalFrame[i] = buffer[i - 5];
 				}
 			}
-			//Read in frame status
-			buffer[dataSize + 5] = input.readByte();
-			frame = new STPLPFrame(buffer);
-			//System.out.println("Node: " + this.NodeID + " Input Frame: ");
-			//System.out.println(frame.toString());
+			//System.out.println("Node " + this.getNodeID() + ": successfully read frame");
+			frame = new STPLPFrame(finalFrame);
+		} catch(EOFException eof) {
+			//Improper Frame Detected
+			System.out.println("Node " + this.getNodeID() + ": Improper Frame Detected");
+			frame = new STPLPFrame(header);
 		} catch (IOException e) {
-			System.out.println("Reading garbage");
-			return null;
+			//System.out.println("\tBad Frame");
+			return frame;
 		}		
 		return frame;
+	}
+	
+	/**
+	 * Attempts to drain the input data stream of data.
+	 */
+	public void drainInputSocket() {
+		DataInputStream input = null;
+		//System.out.println("Attempting to drain socket....");
+		try {
+			input = new DataInputStream(this.clientSocket.getInputStream());
+			System.out.println("Draining socket...");
+			while(input.skip(1) != 0);
+			System.out.println("Drained Socket...");
+			} catch (EOFException e) {
+			return;
+		} catch (IOException e) {
+			System.out.println("Could not drain socket");
+			return;
+		}
 	}
 	
 	/**

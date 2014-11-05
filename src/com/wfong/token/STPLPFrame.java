@@ -1,11 +1,22 @@
 package com.wfong.token;
 
+import java.util.Arrays;
 import java.util.Random;
 
+/**
+ * This class is for holding a frame value in a byte array. It contains methods to set and receive<br>
+ * various control bytes from the frame as well as creating a frame from an input file.
+ * @author william
+ *
+ */
 public class STPLPFrame {
 	//Byte Array for holding the Frame of n-Size.
 	private byte[] frameValue;
 
+	/**
+	 * Creates a frame from a byte array
+	 * @param frameValue
+	 */
 	public STPLPFrame(byte[] frameValue) {
 		this.frameValue = frameValue;
 	}
@@ -24,13 +35,10 @@ public class STPLPFrame {
 		byte[] data;
 		byte frameStatus;
 		//Begin extraction of data from file string
-		//System.out.println("Converting String: " + frameString);
 		String[] strTok = frameString.split(",");
 		destinationAddress = (byte) (Integer.parseInt(strTok[0]) & 0xff);
-		//System.out.println("\tDestination Address: " + (destinationAddress & 0xff));
 		dataSize = (byte) (Integer.parseInt(strTok[1]) & 0xff);
 		data = strTok[2].getBytes();
-		//System.out.println("\tData Size: " + (dataSize & 0xff));
 		//Set other data fields
 		accessControl = 0; //TODO Implement various extra credit schemes
 		frameControl = 1; //Frame is NOT a token
@@ -48,6 +56,30 @@ public class STPLPFrame {
 			this.frameValue[i + 5] = data[i];
 		}
 		this.frameValue[(dataSize & 0xff) + 5] = frameStatus;
+	}
+	
+	/**
+	 * This method generates 1% of the time a garbled frame by omission of a byte
+	 * @return A garbled frame (1%)
+	 */
+	public STPLPFrame garbleFrame() {
+		Random rand = new Random();
+		byte[] garbledFrame;
+		int omit;
+		int i = 0;
+		if (rand.nextInt(100) < 0) {
+			System.out.println("Garbling Frame!");
+			garbledFrame = new byte[this.frameValue.length - 1];
+			omit = rand.nextInt(5);
+			for (byte b: this.frameValue) {
+				if (i == omit)
+					continue;
+				garbledFrame[i] =  b;
+				i++;
+			}
+			return new STPLPFrame(garbledFrame);
+		}
+		return this;
 	}
 	
 	/**
@@ -117,6 +149,9 @@ public class STPLPFrame {
 		return builder.toString();
 	}
 	
+	/**
+	 * This method is for printing the header of the frame.
+	 */
 	public void printHeader() {
 		System.out.println("Byte[0]: " + (this.frameValue[0] & 0xff) +
 						   ", Byte[1]: " + (this.frameValue[1] & 0xff) +
@@ -194,14 +229,14 @@ public class STPLPFrame {
 	 * @return
 	 */
 	public int getReservationLevel() {
-		return 0;
+		byte bitMask = (byte) 0xe0;
+		return this.frameValue[1] & bitMask;
 	}
 	
 	/**
 	 * Returns status of the Frame Control Byte.
 	 * @return Returns 0 if Frame is a Token<br>
-	 * Returns 1 if Frame is not a Token<br>
-	 * Returns 2 if Frame is a Kill Signal
+	 * Returns 1 if Frame is not a Token
 	 */
 	public int getFrameControl() {
 		return (this.frameValue[1] & 0xff);
@@ -259,7 +294,7 @@ public class STPLPFrame {
 	public void generateFrameStatus() {
 		int sizeOfFrame = this.frameValue.length;
 		Random i = new Random();
-		if(i.nextInt(100) < 90) {
+		if(i.nextInt(100) < 20) {
 			//Frame Rejected
 			this.frameValue[sizeOfFrame - 1] = 0x3;
 			return;
@@ -286,5 +321,24 @@ public class STPLPFrame {
 	public byte getFrameStatus() {
 		int sizeOfFrame = this.frameValue.length;
 		return this.frameValue[sizeOfFrame - 1];
+	}
+	
+	/**
+	 * This method overrides the object equal method to be used in STPLP to STPLP comparisons.
+	 * @param obj The STPLP frame to compare to.
+	 */
+	@Override
+	public boolean equals(Object obj) {
+		STPLPFrame frame = (STPLPFrame) obj;
+		return Arrays.equals(frame.getBinaryData(), this.getBinaryData());
+	}
+	
+	/**
+	 * This method overrides the object hash method to be used in STPLP to STPLP comparisons.
+	 */
+	@Override
+	public int hashCode() {
+		System.out.println("Hash value asked of frame");
+		return this.getBinaryData().hashCode();
 	}
 }
